@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Comfort Survey - Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .stat-label {
+            color: var(--gray-600);
+            margin-top: 0.5rem;
+        }
+        .chart-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-600);
+        }
+        .error {
+            background: var(--red-50);
+            color: var(--red-800);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">
+                <i class="fas fa-chart-bar logo-icon"></i>
+                <h1 class="logo-text">Thermal Comfort Dashboard</h1>
+            </div>
+            <div class="current-time">
+                <span id="current-time"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="dashboard-container">
+        <div class="card mb-8">
+            <h2 class="card-title">Survey Data Analytics</h2>
+            <p>Local analysis of saved survey responses (from your browser)</p>
+        </div>
+
+        <div id="loading" class="loading">
+            <i class="fas fa-spinner fa-spin"></i> Loading statistics...
+        </div>
+
+        <div id="error-message" class="error hidden"></div>
+
+        <div id="dashboard-content" class="hidden">
+            <!-- Overall Statistics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="total-responses">-</div>
+                    <div class="stat-label">Total Responses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-pmv">-</div>
+                    <div class="stat-label">Average PMV</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-ppd">-</div>
+                    <div class="stat-label">Average PPD (%)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avg-temperature">-</div>
+                    <div class="stat-label">Average Temperature (°C)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="comfortable-percentage">-</div>
+                    <div class="stat-label">Comfortable Responses (%)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="latest-response">-</div>
+                    <div class="stat-label">Latest Response</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="chart-container">
+                <h3 class="card-subtitle">Gender Distribution</h3>
+                <canvas id="genderChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="card-subtitle">Thermal Sensation Distribution</h3>
+                <canvas id="thermalChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="card-subtitle">Temperature vs PMV</h3>
+                <canvas id="temperatureChart" width="400" height="200"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3 class="card-subtitle">Recent Activity (Last 7 Days)</h3>
+                <canvas id="activityChart" width="400" height="200"></canvas>
+            </div>
+
+            <!-- Data Table -->
+            <div class="card">
+                <h3 class="card-subtitle">Recent Responses</h3>
+                <div id="data-table-container">
+                    <table id="data-table" style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: var(--gray-100);">
+                                <th style="padding: 0.5rem; border: 1px solid var(--gray-300);">Age</th>
+                                <th style="padding: 0.5rem; border: 1px solid var(--gray-300);">Gender</th>
+                                <th style="padding: 0.5rem; border: 1px solid var(--gray-300);">Temperature</th>
+                                <th style="padding: 0.5rem; border: 1px solid var(--gray-300);">PMV</th>
+                                <th style="padding: 0.5rem; border: 1px solid var(--gray-300);">PPD</th>
+                                <th style="padding: 0.5rem; border: 1px solid var(--gray-300);">Sensation</th>
+                                <th style="padding: 0.5rem; border: 1px solid var(--gray-300);">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Update current time
+        function updateTime() {
+            const now = new Date();
+            const el = document.getElementById('current-time');
+            if (el) el.textContent = now.toLocaleString();
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        function getLocalData() {
+            try {
+                const raw = localStorage.getItem('thermal_survey_data') || '[]';
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) ? arr : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function toNumber(value, fallback = 0) {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : fallback;
+        }
+
+        function computeStatistics(rows) {
+            const total = rows.length;
+            let sumPMV = 0, sumPPD = 0, sumTemp = 0;
+            let comfortable = 0;
+            let latest = null;
+
+            const genderMap = new Map();
+            const thermalMap = new Map();
+            const tempBuckets = new Map([
+                ['Cold (< 18°C)', {count:0, sumPMV:0, sumPPD:0, sumTemp:0}],
+                ['Cool (18-22°C)', {count:0, sumPMV:0, sumPPD:0, sumTemp:0}],
+                ['Comfortable (22-26°C)', {count:0, sumPMV:0, sumPPD:0, sumTemp:0}],
+                ['Warm (26-30°C)', {count:0, sumPMV:0, sumPPD:0, sumTemp:0}],
+                ['Hot (> 30°C)', {count:0, sumPMV:0, sumPPD:0, sumTemp:0}],
+            ]);
+            const recentMap = new Map(); // yyyy-mm-dd -> {responses,sumPMV,sumPPD}
+
+            rows.forEach(r => {
+                const pmv = toNumber(r.calculated_pmv);
+                const ppd = toNumber(r.calculated_ppd);
+                const t = toNumber(r.air_temperature);
+                sumPMV += pmv; sumPPD += ppd; sumTemp += t;
+                if (pmv >= -0.5 && pmv <= 0.5) comfortable++;
+
+                const ts = r.timestamp ? new Date(r.timestamp) : null;
+                if (ts && (!latest || ts > latest)) latest = ts;
+
+                const g = (r.gender || 'unknown').toString();
+                const gEntry = genderMap.get(g) || {count:0, sumPMV:0, sumPPD:0, sumAge:0};
+                gEntry.count++; gEntry.sumPMV += pmv; gEntry.sumPPD += ppd; gEntry.sumAge += toNumber(r.age);
+                genderMap.set(g, gEntry);
+
+                const s = r.thermal_sensation != null ? r.thermal_sensation.toString() : 'unknown';
+                const th = thermalMap.get(s) || {count:0, sumPMV:0, sumPPD:0};
+                th.count++; th.sumPMV += pmv; th.sumPPD += ppd; thermalMap.set(s, th);
+
+                let bucket = 'Hot (> 30°C)';
+                if (t < 18) bucket = 'Cold (< 18°C)';
+                else if (t < 22) bucket = 'Cool (18-22°C)';
+                else if (t < 26) bucket = 'Comfortable (22-26°C)';
+                else if (t < 30) bucket = 'Warm (26-30°C)';
+                const b = tempBuckets.get(bucket);
+                b.count++; b.sumPMV += pmv; b.sumPPD += ppd; b.sumTemp += t;
+
+                if (ts) {
+                    const day = ts.toISOString().slice(0,10);
+                    const rec = recentMap.get(day) || {responses:0, sumPMV:0, sumPPD:0};
+                    rec.responses++; rec.sumPMV += pmv; rec.sumPPD += ppd;
+                    recentMap.set(day, rec);
+                }
+            });
+
+            const avgPMV = total ? (sumPMV/total) : 0;
+            const avgPPD = total ? (sumPPD/total) : 0;
+            const avgTemp = total ? (sumTemp/total) : 0;
+
+            const genderDistribution = Array.from(genderMap.entries()).map(([gender, v]) => ({
+                gender,
+                count: v.count,
+                avg_pmv: v.count ? v.sumPMV/v.count : 0,
+                avg_ppd: v.count ? v.sumPPD/v.count : 0,
+                avg_age: v.count ? v.sumAge/v.count : 0,
+            })).sort((a,b)=>b.count-a.count);
+
+            const thermalSensationDistribution = Array.from(thermalMap.entries()).map(([thermal_sensation, v]) => ({
+                thermal_sensation,
+                count: v.count,
+                avg_pmv: v.count ? v.sumPMV/v.count : 0,
+                avg_ppd: v.count ? v.sumPPD/v.count : 0,
+            })).sort((a,b)=> (a.thermal_sensation> b.thermal_sensation?1:-1));
+
+            const temperatureRanges = Array.from(tempBuckets.entries()).map(([label, v]) => ({
+                temperature_range: label,
+                count: v.count,
+                avg_pmv: v.count ? v.sumPMV/v.count : 0,
+                avg_ppd: v.count ? v.sumPPD/v.count : 0,
+                avg_temperature: v.count ? v.sumTemp/v.count : 0,
+            }));
+
+            const now = new Date();
+            const sevenDaysAgo = new Date(now.getTime() - 7*24*60*60*1000);
+            const recentActivity = Array.from(recentMap.entries())
+                .map(([date, v]) => ({
+                    date,
+                    responses: v.responses,
+                    avg_pmv: v.responses ? v.sumPMV/v.responses : 0,
+                    avg_ppd: v.responses ? v.sumPPD/v.responses : 0,
+                }))
+                .filter(d => new Date(d.date) >= sevenDaysAgo)
+                .sort((a,b)=> new Date(a.date) - new Date(b.date));
+
+            return {
+                overall: {
+                    total_responses: total,
+                    avg_pmv: avgPMV,
+                    avg_ppd: avgPPD,
+                    avg_temperature: avgTemp,
+                    comfortable_responses: comfortable,
+                    latest_response: latest ? latest.toISOString() : null,
+                },
+                genderDistribution,
+                thermalSensationDistribution,
+                temperatureRanges,
+                recentActivity,
+                rows
+            };
+        }
+
+        function displayStatistics(stats) {
+            const overall = stats.overall;
+            document.getElementById('total-responses').textContent = overall.total_responses || 0;
+            document.getElementById('avg-pmv').textContent = (overall.avg_pmv || 0).toFixed(2);
+            document.getElementById('avg-ppd').textContent = (overall.avg_ppd || 0).toFixed(1);
+            document.getElementById('avg-temperature').textContent = (overall.avg_temperature || 0).toFixed(1);
+            const comfortablePercentage = overall.total_responses > 0 
+                ? ((overall.comfortable_responses / overall.total_responses) * 100).toFixed(1)
+                : 0;
+            document.getElementById('comfortable-percentage').textContent = comfortablePercentage;
+            if (overall.latest_response) {
+                const latestDate = new Date(overall.latest_response);
+                document.getElementById('latest-response').textContent = latestDate.toLocaleString();
+            }
+
+            createGenderChart(stats.genderDistribution);
+            createThermalChart(stats.thermalSensationDistribution);
+            createTemperatureChart(stats.temperatureRanges);
+            createActivityChart(stats.recentActivity);
+        }
+
+        function createGenderChart(genderData) {
+            const ctx = document.getElementById('genderChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: genderData.map(item => item.gender),
+                    datasets: [{
+                        data: genderData.map(item => item.count),
+                        backgroundColor: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        function createThermalChart(thermalData) {
+            const ctx = document.getElementById('thermalChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: thermalData.map(item => item.thermal_sensation),
+                    datasets: [{
+                        label: 'Responses',
+                        data: thermalData.map(item => item.count),
+                        backgroundColor: '#3B82F6'
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function createTemperatureChart(tempData) {
+            const ctx = document.getElementById('temperatureChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Temperature vs PMV',
+                        data: tempData.filter(d => d.count>0).map(item => ({ x: item.avg_temperature, y: item.avg_pmv })),
+                        backgroundColor: '#3B82F6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: 'Temperature (°C)' } },
+                        y: { title: { display: true, text: 'PMV' } }
+                    }
+                }
+            });
+        }
+
+        function createActivityChart(activityData) {
+            const ctx = document.getElementById('activityChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: activityData.map(item => new Date(item.date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Responses',
+                        data: activityData.map(item => item.responses),
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function displayDataTable(data) {
+            const tbody = document.getElementById('data-table-body');
+            tbody.innerHTML = '';
+            data.slice(-10).reverse().forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="padding: 0.5rem; border: 1px solid var(--gray-300);">${row.age ?? '-'}</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--gray-300);">${row.gender ?? '-'}</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--gray-300);">${row.air_temperature ?? '-'}°C</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--gray-300);">${row.calculated_pmv ?? '-'}</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--gray-300);">${row.calculated_ppd ?? '-'}%</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--gray-300);">${row.thermal_sensation ?? '-'}</td>
+                    <td style="padding: 0.5rem; border: 1px solid var(--gray-300);">${row.timestamp ? new Date(row.timestamp).toLocaleString() : '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const data = getLocalData();
+            const stats = computeStatistics(data);
+            displayStatistics(stats);
+            displayDataTable(stats.rows);
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('dashboard-content').classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>

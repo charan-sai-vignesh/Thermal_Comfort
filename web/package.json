@@ -1,0 +1,22 @@
+{
+  "name": "thermal-comfort-survey",
+  "version": "1.0.0",
+  "description": "Thermal Comfort Survey with PMV and PPD calculations",
+  "main": "web.html",
+  "scripts": {
+    "build": "echo 'No build step required for static site'",
+    "start": "echo 'Static site - serve web.html'"
+  },
+  "keywords": [
+    "thermal-comfort",
+    "pmv",
+    "ppd",
+    "survey",
+    "environmental-research"
+  ],
+  "author": "Thermal Comfort Research",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <base target="_self">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Comfort Survey</title>
+    <meta name="description" content="Thermal comfort survey with PMV and PPD calculations for environmental research">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">
+                <i class="fas fa-thermometer-half logo-icon"></i>
+                <h1 class="logo-text">Thermal Comfort Survey</h1>
+            </div>
+            <div class="current-time">
+                <span id="current-time"></span>
+            </div>
+        </nav>
+    </header>
+
+    <main class="main-container">
+        <div class="content-wrapper">
+            <!-- Introduction Section -->
+            <div class="card">
+                <h2 class="card-title">Thermal Comfort Assessment</h2>
+                <p class="mb-4">
+                    This survey collects data for thermal comfort analysis using the Predicted Mean Vote (PMV) 
+                    and Predicted Percentage of Dissatisfied (PPD) models. Please provide accurate information 
+                    about your current environmental conditions and personal perception.
+                </p>
+                <div class="alert alert-info">
+                    <p>
+                        <strong>Note:</strong> All data will be sent to the Raspberry Pi for analysis and storage.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Survey Form -->
+            <form id="thermal-survey-form" class="card">
+                <!-- Personal Information -->
+                <div class="mb-8">
+                    <h3 class="card-subtitle">Personal Information</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Age</label>
+                            <input type="number" name="age" min="18" max="100" 
+                                   class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Gender</label>
+                            <select name="gender" class="form-select" required>
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clothing Selection -->
+                <div class="mb-8">
+                    <h3 class="card-subtitle">Clothing Selection</h3>
+                    <p class="mb-4">Please select the clothing combination that best describes what you're wearing:</p>
+                    <div class="clothing-section">
+                        <div id="clothing-options" class="clothing-grid">
+                            <!-- Clothing options will be populated by JavaScript based on gender selection -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity Level -->
+                <div class="mb-8">
+                    <h3 class="card-subtitle">Activity Level (MET)</h3>
+                    <div class="form-group">
+                        <label class="form-label">Current Activity Level</label>
+                        <select name="activity_level" class="form-select" required>
+                            <option value="">Select Activity Level</option>
+                            <option value="0.8">Sleeping or lying down (0.8 MET)</option>
+                            <option value="1.0">Seated, relaxed (1.0 MET)</option>
+                            <option value="1.2">Seated, light work (1.2 MET)</option>
+                            <option value="1.4">Standing, light work (1.4 MET)</option>
+                            <option value="2.0">Walking slowly (2.0 MET)</option>
+                            <option value="3.0">Walking normally (3.0 MET)</option>
+                            <option value="4.0">Light exercise or activity (4.0 MET)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Environmental Parameters -->
+                <div class="mb-8">
+                    <h3 class="card-subtitle">Environmental Parameters</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Air Temperature (°C)</label>
+                            <input type="number" name="air_temperature" step="0.1" 
+                                   class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Relative Humidity (%)</label>
+                            <input type="number" name="relative_humidity" min="0" max="100" 
+                                   class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Air Velocity (m/s)</label>
+                            <input type="number" name="air_velocity" step="0.1" min="0" 
+                                   class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mean Radiant Temperature (°C)</label>
+                            <input type="number" name="mean_radiant_temp" step="0.1" 
+                                   class="form-input" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Thermal Sensation Scale -->
+                <div class="mb-8">
+                    <h3 class="card-subtitle">Thermal Sensation</h3>
+                    <div class="thermal-scale">
+                        <label class="thermal-scale-label">
+                            How are you feeling thermally right now? (Scale: -3 to +3)
+                        </label>
+                        <div class="thermal-options">
+                            <div class="thermal-option">
+                                <input type="radio" name="thermal_sensation" value="-3" id="ts-3" class="thermal-input">
+                                <label for="ts-3" class="thermal-label">
+                                    <div class="thermal-value">-3</div>
+                                    <div class="thermal-description">Cold</div>
+                                </label>
+                            </div>
+                            <div class="thermal-option">
+                                <input type="radio" name="thermal_sensation" value="-2" id="ts-2" class="thermal-input">
+                                <label for="ts-2" class="thermal-label">
+                                    <div class="thermal-value">-2</div>
+                                    <div class="thermal-description">Cool</div>
+                                </label>
+                            </div>
+                            <div class="thermal-option">
+                                <input type="radio" name="thermal_sensation" value="-1" id="ts-1" class="thermal-input">
+                                <label for="ts-1" class="thermal-label">
+                                    <div class="thermal-value">-1</div>
+                                    <div class="thermal-description">Slightly Cool</div>
+                                </label>
+                            </div>
+                            <div class="thermal-option">
+                                <input type="radio" name="thermal_sensation" value="0" id="ts0" class="thermal-input">
+                                <label for="ts0" class="thermal-label">
+                                    <div class="thermal-value">0</div>
+                                    <div class="thermal-description">Neutral</div>
+                                </label>
+                            </div>
+                            <div class="thermal-option">
+                                <input type="radio" name="thermal_sensation" value="1" id="ts1" class="thermal-input">
+                                <label for="ts1" class="thermal-label">
+                                    <div class="thermal-value">+1</div>
+                                    <div class="thermal-description">Slightly Warm</div>
+                                </label>
+                            </div>
+                            <div class="thermal-option">
+                                <input type="radio" name="thermal_sensation" value="2" id="ts2" class="thermal-input">
+                                <label for="ts2" class="thermal-label">
+                                    <div class="thermal-value">+2</div>
+                                    <div class="thermal-description">Warm</div>
+                                </label>
+                            </div>
+                            <div class="thermal-option">
+                                <input type="radio" name="thermal_sensation" value="3" id="ts3" class="thermal-input">
+                                <label for="ts3" class="thermal-label">
+                                    <div class="thermal-value">+3</div>
+                                    <div class="thermal-description">Hot</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Comfort Parameters -->
+                <div class="mb-8">
+                    <h3 class="card-subtitle">Additional Comfort Parameters</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Thermal Preference</label>
+                            <select name="thermal_preference" class="form-select">
+                                <option value="">Select Preference</option>
+                                <option value="warmer">Warmer</option>
+                                <option value="no_change">No Change</option>
+                                <option value="cooler">Cooler</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Air Movement Preference</label>
+                            <select name="air_movement_preference" class="form-select">
+                                <option value="">Select Preference</option>
+                                <option value="more">More Air Movement</option>
+                                <option value="no_change">No Change</option>
+                                <option value="less">Less Air Movement</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-center">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Submit Survey</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Results Display -->
+            <div id="results-section" class="card hidden">
+                <h3 class="card-subtitle">Calculation Results</h3>
+                <div class="results-grid">
+                    <div class="result-card pmv">
+                        <h4 class="result-title pmv">PMV (Predicted Mean Vote)</h4>
+                        <p id="pmv-result" class="result-value pmv">-</p>
+                    </div>
+                    <div class="result-card ppd">
+                        <h4 class="result-title ppd">PPD (Predicted Percentage Dissatisfied)</h4>
+                        <p id="ppd-result" class="result-value ppd">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p class="footer-text">&copy; 2024 Thermal Comfort Research. Data collected for scientific purposes.</p>
+            <p class="footer-subtext">All data transmitted to Raspberry Pi endpoint</p>
+        </div>
+    </footer>
+    
+    <script src="script.js?v=2"></script>
+</body>
+</html>
