@@ -181,23 +181,26 @@ function calculatePMV(ta, tr, vel, rh, met, clo) {
     const Icl = clo * 0.155;          // Clothing insulation [m^2K/W]
     const Mw = M - W;                 // Internal heat production
 
-    // Partial water vapor pressure [Pa]
-    const Pa = (rh / 100) * 10 * Math.exp(16.6536 - 4030.183 / (ta + 235));
+    // Partial water vapor pressure [Pa] with bounds to avoid overflow
+    let Pa = (rh / 100) * 10 * Math.exp(16.6536 - 4030.183 / (ta + 235));
+    if (!Number.isFinite(Pa)) Pa = 0;
+    Pa = Math.max(0, Math.min(Pa, 7000));
 
     // Clothing area factor
     const fcl = Icl > 0.078 ? (1.05 + 0.645 * Icl) : (1.0 + 1.29 * Icl);
 
     // Initial estimates
     let tcl = ta + (35.5 - ta) / (3.5 * (Icl + 0.1));
-    let hc = Math.max(12.1 * Math.sqrt(vel), 2.38 * Math.pow(Math.abs(tcl - ta), 0.25));
+    let hc = Math.max(12.1 * Math.sqrt(vel), 2.38 * Math.pow(Math.max(0.001, Math.abs(tcl - ta)), 0.25));
 
     // Iterate to solve for clothing surface temperature
     for (let i = 0; i < 150; i++) {
         const tclPrev = tcl;
         const hrTerm = 3.96e-8 * fcl * (Math.pow(tcl + 273.0, 4) - Math.pow(tr + 273.0, 4));
-        hc = Math.max(12.1 * Math.sqrt(vel), 2.38 * Math.pow(Math.abs(tcl - ta), 0.25));
+        hc = Math.max(12.1 * Math.sqrt(vel), 2.38 * Math.pow(Math.max(0.001, Math.abs(tcl - ta)), 0.25));
         const hcTerm = fcl * hc * (tcl - ta);
         tcl = 35.7 - 0.028 * Mw - Icl * (hrTerm + hcTerm);
+        if (!Number.isFinite(tcl)) { tcl = tclPrev; break; }
         if (Math.abs(tcl - tclPrev) < 0.001) break;
     }
 
@@ -209,8 +212,27 @@ function calculatePMV(ta, tr, vel, rh, met, clo) {
     const hr = 3.96e-8 * fcl * (Math.pow(tcl + 273.0, 4) - Math.pow(tr + 273.0, 4));
     const hcFinal = fcl * hc * (tcl - ta);
 
-    const pmv = (0.303 * Math.exp(-0.036 * M) + 0.028) * (Mw - hl1 - hl2 - hl3 - hl4 - hr - hcFinal);
+    let pmv = (0.303 * Math.exp(-0.036 * M) + 0.028) * (Mw - hl1 - hl2 - hl3 - hl4 - hr - hcFinal);
+    if (!Number.isFinite(pmv)) {
+        // Fallback simplified approximation to avoid NaN
+        const delta = (ta - 22) - 0.5 * (clo - 0.5) + 0.2 * (met - 1.2) + 0.1 * (rh - 50) / 10 - 0.6 * (vel - 0.1);
+        pmv = Math.max(-3, Math.min(3, delta / 3));
+    }
     return Math.max(-3, Math.min(3, Number(pmv.toFixed(2))));
+}
+
+// Debug helper for console testing
+function debugPMV(ta, tr, vel, rh, met, clo) {
+    const result = { inputs: { ta, tr, vel, rh, met, clo } };
+    try {
+        const pmv = calculatePMV(ta, tr, vel, rh, met, clo);
+        const ppd = calculatePPD(pmv);
+        result.pmv = pmv;
+        result.ppd = ppd;
+    } catch (e) {
+        result.error = String(e);
+    }
+    return result;
 }
 
 // PPD calculation from PMV
@@ -436,5 +458,6 @@ window.ThermalComfort = {
     calculatePMV,
     calculatePPD,
     clothingData,
-    activityData
+    activityData,
+    debugPMV
 };
